@@ -31,6 +31,27 @@ class JPTHB_PT_main(Panel):
         roof.prop(props, "roof_overhang_mm")
         roof.prop(props, "slope_along_y")
 
+        openings = layout.box()
+        openings.label(text="Door and Window Openings")
+        openings.prop(props, "use_openings")
+        if props.use_openings:
+            openings.prop(props, "front_door_width_mm")
+            openings.prop(props, "front_door_height_mm")
+            openings.prop(props, "north_window_width_mm")
+            openings.prop(props, "north_window_height_mm")
+            openings.prop(props, "north_window_sill_mm")
+
+        dxf = layout.box()
+        dxf.label(text="DXF Plans")
+        dxf.prop(props, "use_dxf_plans")
+        if props.use_dxf_plans:
+            dxf.prop(props, "first_floor_dxf")
+            dxf.prop(props, "second_floor_dxf")
+            dxf.prop(props, "dxf_layer_filter")
+            dxf.prop(props, "dxf_units_to_mm")
+            dxf.prop(props, "dxf_min_segment_mm")
+            dxf.prop(props, "dxf_center_plans")
+
         layout.operator("jp_thb.generate", icon="MOD_BUILD")
         layout.operator("jp_thb.clear", icon="TRASH")
 
