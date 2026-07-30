@@ -1,8 +1,9 @@
-"""Small dependency-free ASCII DXF reader for plan linework.
+"""Dependency-free ASCII DXF reader for plan linework.
 
-Supported entities: LINE and LWPOLYLINE. This intentionally avoids an
-external ezdxf dependency so the add-on can be installed as a normal Blender
-ZIP. Binary DXF files are rejected with a clear error.
+Supports LINE, LWPOLYLINE and legacy POLYLINE/VERTEX/SEQEND entities,
+which are used by the supplied Japanese architectural drawings.  The reader
+keeps the source layer so callers can filter walls, doors and windows without
+requiring ezdxf inside Blender.
 """
 
 from dataclasses import dataclass
@@ -65,15 +66,30 @@ def _first(entity, code, default=None):
     return default
 
 
-def _line(entity):
+def _float(value):
     try:
-        return DXFSegment(
-            (float(_first(entity, 10)), float(_first(entity, 20))),
-            (float(_first(entity, 11)), float(_first(entity, 21))),
-            _first(entity, 8, "0"),
-        )
+        return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _line(entity):
+    x1, y1 = _float(_first(entity, 10)), _float(_first(entity, 20))
+    x2, y2 = _float(_first(entity, 11)), _float(_first(entity, 21))
+    if None in (x1, y1, x2, y2):
+        return None
+    return DXFSegment((x1, y1), (x2, y2), _first(entity, 8, "0"))
+
+
+def _segments(points, layer, closed=False):
+    result = [
+        DXFSegment(start, end, layer)
+        for start, end in zip(points, points[1:])
+        if start != end
+    ]
+    if closed and len(points) > 2 and points[-1] != points[0]:
+        result.append(DXFSegment(points[-1], points[0], layer))
+    return result
 
 
 def _lwpolyline(entity):
@@ -83,20 +99,52 @@ def _lwpolyline(entity):
     pending_x = None
     for code, value in entity:
         if code == 10:
-            try:
-                pending_x = float(value)
-            except ValueError:
-                pending_x = None
+            pending_x = _float(value)
         elif code == 20 and pending_x is not None:
-            try:
-                points.append((pending_x, float(value)))
-            except ValueError:
-                pass
+            y = _float(value)
+            if y is not None:
+                points.append((pending_x, y))
             pending_x = None
-    segments = [DXFSegment(a, b, layer) for a, b in zip(points, points[1:])]
-    if flags & 1 and len(points) > 2:
-        segments.append(DXFSegment(points[-1], points[0], layer))
-    return segments
+    return _segments(points, layer, bool(flags & 1))
+
+
+def _polyline(entity):
+    """Read an R12-style POLYLINE followed by VERTEX records.
+
+    _entities keeps VERTEX and SEQEND as separate records.  This helper
+    consumes the complete three-record sequence and is called by
+    _legacy_polylines below.
+    """
+    flags = int(_first(entity, 70, "0") or 0)
+    return _first(entity, 8, "0"), bool(flags & 1)
+
+
+def _legacy_polylines(entities):
+    result = []
+    index = 0
+    while index < len(entities):
+        entity = entities[index]
+        if entity[0][1] != "POLYLINE":
+            index += 1
+            continue
+
+        layer, closed = _polyline(entity)
+        points = []
+        index += 1
+        while index < len(entities):
+            child = entities[index]
+            entity_type = child[0][1]
+            if entity_type == "VERTEX":
+                x, y = _float(_first(child, 10)), _float(_first(child, 20))
+                if x is not None and y is not None:
+                    points.append((x, y))
+                index += 1
+                continue
+            if entity_type == "SEQEND":
+                index += 1
+            break
+        result.extend(_segments(points, layer, closed))
+    return result
 
 
 def read_segments(path: str) -> list[DXFSegment]:
@@ -106,6 +154,7 @@ def read_segments(path: str) -> list[DXFSegment]:
     raw = file_path.read_bytes()
     if raw.startswith(b"AutoCAD Binary DXF"):
         raise ValueError("Binary DXF is not supported; save as ASCII DXF")
+
     text = None
     for encoding in ("utf-8-sig", "cp932", "latin-1"):
         try:
@@ -116,8 +165,9 @@ def read_segments(path: str) -> list[DXFSegment]:
     if text is None:
         raise ValueError("Unable to decode DXF")
 
+    entities = list(_entities(_pairs(text)))
     result = []
-    for entity in _entities(_pairs(text)):
+    for entity in entities:
         entity_type = entity[0][1]
         if entity_type == "LINE":
             segment = _line(entity)
@@ -125,6 +175,7 @@ def read_segments(path: str) -> list[DXFSegment]:
                 result.append(segment)
         elif entity_type == "LWPOLYLINE":
             result.extend(_lwpolyline(entity))
+    result.extend(_legacy_polylines(entities))
     return result
 
 
