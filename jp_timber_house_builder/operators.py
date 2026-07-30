@@ -9,7 +9,7 @@ from .utils.collections import clear_generated, ensure_collections
 
 class JPTHB_OT_generate(Operator):
     bl_idname = "jp_thb.generate"
-    bl_label = "Generate v0.4 House"
+    bl_label = "Generate v0.6 House"
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
@@ -19,7 +19,7 @@ class JPTHB_OT_generate(Operator):
         build_floors(props, collections)
         build_walls(props, collections)
         build_roof(props, collections)
-        self.report({"INFO"}, "JP Timber House v0.4 generated")
+        self.report({"INFO"}, "JP Timber House v0.6 generated")
         return {"FINISHED"}
 
 

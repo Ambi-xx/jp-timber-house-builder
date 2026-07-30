@@ -17,9 +17,20 @@ class JPTHBProperties(PropertyGroup):
     slope_along_y: BoolProperty(name="Slope along Y", default=True)
     include_second_story: BoolProperty(name="Second story", default=True)
 
+    use_openings: BoolProperty(
+        name="Create door and window openings",
+        description="Split perimeter walls to leave real, empty openings",
+        default=True,
+    )
+    front_door_width_mm: FloatProperty(name="South door width", default=910.0, min=400.0)
+    front_door_height_mm: FloatProperty(name="South door height", default=2100.0, min=1500.0)
+    north_window_width_mm: FloatProperty(name="North window width", default=1640.0, min=300.0)
+    north_window_height_mm: FloatProperty(name="North window height", default=1100.0, min=300.0)
+    north_window_sill_mm: FloatProperty(name="North window sill", default=900.0, min=0.0)
+
     use_dxf_plans: BoolProperty(
         name="Build walls from DXF",
-        description="Generate plan walls from ASCII DXF LINE and LWPOLYLINE entities",
+        description="Generate plan walls from ASCII DXF linework",
         default=False,
     )
     first_floor_dxf: StringProperty(name="1F DXF", subtype="FILE_PATH")

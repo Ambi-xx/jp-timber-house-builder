@@ -1,10 +1,10 @@
 bl_info = {
     "name": "JP Timber House Builder",
     "author": "OpenAI + Project Owner",
-    "version": (0, 4, 0),
+    "version": (0, 6, 0),
     "blender": (5, 0, 0),
     "location": "View3D > Sidebar > JP House",
-    "description": "Parameterized Japanese timber-house massing generator",
+    "description": "Japanese timber-house massing with DXF-ready plans and openings",
     "category": "Add Mesh",
 }
 
